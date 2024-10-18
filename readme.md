@@ -1,4 +1,4 @@
-# ESPHome Samsung AC
+# ESPHome Samsung PDC
 
 This project offers an [ESPHome](https://esphome.io/index.html) component for integrating Samsung air conditioners into your home automation system. It provides the ability to monitor and control your AC units effortlessly.
 
