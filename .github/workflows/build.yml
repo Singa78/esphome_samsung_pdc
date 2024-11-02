@@ -1,5 +1,26 @@
 name: Build and Test
-on: [push]
+on:
+  push:
+    paths-ignore:
+      - 'README.md'
+      - 'example.yaml'
+      - 'nasa.md'
+      - 'security.md'
+      - 'LICENSE'
+      - 'CONTRIBUTING.md'
+      - 'docs/model-checker/**'
+      - '.github/**'
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'example.yaml'
+      - 'nasa.md'
+      - 'SECURITY.md'
+      - 'LICENSE'
+      - 'CONTRIBUTING.md'
+      - 'docs/model-checker/**'
+      - '.github/**'
+      
 jobs:
   framework-arduino:
     runs-on: ubuntu-latest     

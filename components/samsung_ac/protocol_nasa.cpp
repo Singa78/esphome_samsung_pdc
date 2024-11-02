@@ -1,6 +1,7 @@
 #include <set>
 #include "esphome/core/log.h"
 #include "esphome/core/util.h"
+#include "esphome/core/hal.h"
 #include "util.h"
 #include "protocol_nasa.h"
 #include "debug_mqtt.h"
@@ -11,6 +12,13 @@ namespace esphome
 {
     namespace samsung_ac
     {
+        struct PacketInfo
+        {
+            Packet packet;
+            int retry_count;
+            uint32_t last_sent_time;
+        };
+
         int variable_to_signed(int value)
         {
             if (value < 65535 /*uint16 max*/)
@@ -207,6 +215,7 @@ namespace esphome
         static int _packetCounter = 0;
 
         std::vector<Packet> out;
+        std::vector<PacketInfo> sent_packets;
 
         /*
                 class OutgoingPacket
@@ -468,6 +477,8 @@ namespace esphome
 
             auto data = packet.encode();
             target->publish_data(data);
+
+            sent_packets.push_back({packet, 0, millis()});
         }
 
         Mode operation_mode_to_mode(int value)
@@ -716,7 +727,34 @@ namespace esphome
                 target->set_error_code(source, code);
                 break;
             }
-
+            case MessageNumber::LVAR_OUT_CONTROL_WATTMETER_1W_1MIN_SUM:
+            {
+                double value = static_cast<double>(message.value);
+                LOG_MESSAGE(LVAR_OUT_CONTROL_WATTMETER_1W_1MIN_SUM, value, source, dest);
+                target->set_outdoor_instantaneous_power(source, value);
+                break;
+            }
+            case MessageNumber::LVAR_OUT_CONTROL_WATTMETER_ALL_UNIT_ACCUM:
+            {
+                double value = static_cast<double>(message.value);
+                LOG_MESSAGE(LVAR_OUT_CONTROL_WATTMETER_ALL_UNIT_ACCUM, value, source, dest);
+                target->set_outdoor_cumulative_energy(source, value);
+                break;
+            }
+            case MessageNumber::VAR_OUT_SENSOR_CT1:
+            {
+                double value = static_cast<double>(message.value);
+                LOG_MESSAGE(VAR_OUT_SENSOR_CT1, value, source, dest);
+                target->set_outdoor_current(source, value);
+                break;
+            }
+            case MessageNumber::LVAR_NM_OUT_SENSOR_VOLTAGE:
+            {
+                double value = static_cast<double>(message.value);
+                LOG_MESSAGE(LVAR_NM_OUT_SENSOR_VOLTAGE, value, source, dest);
+                target->set_outdoor_voltage(source, value);
+                break;
+            }
             default:
             {
                 double value = 0;
@@ -735,16 +773,6 @@ namespace esphome
                 case 0x4262:
                     value = (double)message.value / 10.0;
                     LOG_MESSAGE(VAR_IN_FSV_3023, value, source, dest);
-                    break;
-
-                case 0x8414:
-                    value = (double)message.value / 1000.0;
-                    LOG_MESSAGE(LVAR_OUT_CONTROL_WATTMETER_ALL_UNIT_ACCUM, value, source, dest);
-                    break;
-
-                case 0x8413:
-                    value = (double)message.value;
-                    LOG_MESSAGE(LVAR_OUT_CONTROL_WATTMETER_1W_1MIN_SUM, value, source, dest);
                     break;
 
                 case 0x8411:
@@ -803,17 +831,24 @@ namespace esphome
 
             if (packet_.command.dataType == DataType::Ack)
             {
-                for (int i = 0; i < out.size(); i++)
+                bool ack_found = false;
+                for (auto it = sent_packets.begin(); it != sent_packets.end(); ++it)
                 {
-                    if (out[i].command.packetNumber == packet_.command.packetNumber)
+                    if (it->packet.command.packetNumber == packet_.command.packetNumber)
                     {
-                        ESP_LOGW(TAG, "found %d", out[i].command.packetNumber);
-                        out.erase(out.begin() + i);
+                        ESP_LOGW(TAG, "found Ack for packet number %d", it->packet.command.packetNumber);
+                        sent_packets.erase(it);
+                        ack_found = true;
                         break;
                     }
                 }
 
-                ESP_LOGW(TAG, "Ack %s s %d", packet_.to_string().c_str(), out.size());
+                if (!ack_found)
+                {
+                    ESP_LOGW(TAG, "Ack not found for packet number %d", packet_.command.packetNumber);
+                }
+
+                ESP_LOGW(TAG, "Ack %s sent_packets size: %d", packet_.to_string().c_str(), sent_packets.size());
                 return;
             }
 
@@ -849,6 +884,23 @@ namespace esphome
             for (auto &message : packet_.messages)
             {
                 process_messageset(source, dest, message, target);
+            }
+
+            uint32_t now = millis();
+            for (auto &info : sent_packets)
+            {
+                if (now - info.last_sent_time > 1000 && info.retry_count < 3)
+                {
+                    info.retry_count++;
+                    info.last_sent_time = now;
+                    auto data = info.packet.encode();
+                    target->publish_data(data);
+                    ESP_LOGW(TAG, "Resending packet %d number of attempts: %d", info.packet.command.packetNumber, info.retry_count);
+                }
+                else if (info.retry_count >= 3)
+                {
+                    ESP_LOGW(TAG, "Packet %d failed after 3 attempts.", info.packet.command.packetNumber);
+                }
             }
         }
 
@@ -1040,7 +1092,6 @@ namespace esphome
             case 0x80af:
             case 0x8204:
             case 0x820a:
-            case 0x8217:
             case 0x8218:
             case 0x821a:
             case 0x8223:
@@ -1101,9 +1152,6 @@ namespace esphome
             case 0x82a1:
             case 0x82b5:
             case 0x82b6:
-            case 0x8411:
-            case 0x8413:
-            case 0x8414:
             case 0x8608:
             case 0x860c:
             case 0x860d:
@@ -1120,12 +1168,6 @@ namespace esphome
             case 0x8260:
             case 0x2400:
             case 0x2401:
-            case 0x24fc:
-            {
-                // ESP_LOGW(TAG, "s:%s d:%s Todo %s %li", source.c_str(), dest.c_str(), long_to_hex((int)message.messageNumber).c_str(), message.value);
-                break; // Todo
-            }
-
             case 0x8601: // STR_out_install_inverter_and_bootloader_info
             case 0x608:  // STR_ad_dbcode_micom_main
             case 0x603:  // STR_ad_option_cycle

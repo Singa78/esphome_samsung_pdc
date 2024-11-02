@@ -46,7 +46,7 @@ uart:
 
 # Import custom component from GitHub
 external_components:
-  - source: github://lanwin/esphome_samsung_ac@main # Use @stable if you want a more stable experience, but note a lot of this example code breaks.
+  - source: github://omerfaruk-aran/esphome_samsung_hvac_bus@main # Use @stable if you want a more stable experience, but note a lot of this example code breaks.
     components: [samsung_ac]
 
 # Configuration of AC component
@@ -62,20 +62,20 @@ samsung_ac:
   # When enabled (set to true), this option logs messages associated with defined codes on the device. This helps in monitoring the behavior of the device by recording the activity related to known, expected codes.
   debug_log_messages: false
 
-  # Capabilities configure the features alle devices of your AC system have (all parts of this section are optional). 
+  # Capabilities configure the features that all devices of your AC system have (all parts of this section are optional). 
   # All capabilities are off by default, you need to enable only those your devices have.
-  # You can override or configure them also on a per devices basis (look below for that).
+  # You can override or configure them also on a per-device basis (look below for that).
   capabilities: 
     vertical_swing: true
     horizontal_swing: true
-    # Presets define special AC modes like Windfree and so on. 
-    # The following modes are available: sleep, quiet, fast, longreach, windfree, eco
+    # Presets define special AC modes like Windfree, Eco, and so on. 
+    # The following modes are available: sleep, quiet, fast, longreach, windfree, eco.
     presets: 
-      # short version
+      # Short version - a quick and simple way to enable presets.
       quiet: true
-      # long version - allows to locilize names
-      quiet:
-        name: "Makes no sound"
+      # Long version - allows customization, including localized names and control over enabling the presets.
+      fast:
+        name: "Fast cooling"
         enabled: true
 
   devices:
@@ -131,7 +131,27 @@ samsung_ac:
       # Additionally, by using the blueprint available at https://github.com/omerfaruk-aran/esphome_samsung_ac_blueprint,
       # you can automatically send detailed error messages to your mobile devices based on the captured error codes.
       error_code:
-        name: "Error Code"
+        name: error_code
+        
+      # This sensor measures the instantaneous power consumption of the outdoor unit in Watts.
+      # The captured value represents the current power draw of the outdoor HVAC components, helping track energy usage patterns.
+      outdoor_instantaneous_power:
+        name: "Outdoor Instantaneous Power"
+
+      # This sensor records the cumulative energy consumption of the outdoor unit in kWh.
+      # It calculates the total energy consumed over time, allowing users to monitor and analyze energy efficiency.
+      outdoor_cumulative_energy:
+        name: "Outdoor Cumulative Energy"
+
+      # This sensor measures the current drawn by the outdoor unit in Amperes.
+      # Monitoring current values helps identify electrical irregularities and ensure safe power levels in the system.
+      outdoor_current:
+        name: "Outdoor Current"
+
+      # This sensor tracks the voltage supplied to the outdoor unit in Volts.
+      # Consistent voltage readings indicate stable power delivery, while deviations can help detect electrical issues in the system.
+      outdoor_voltage:
+        name: "Outdoor Voltage"
 
       # Only supported on NASA based heatpumps
       water_temperature:
@@ -142,4 +162,3 @@ samsung_ac:
         name: "Hotwater Mode"
       outdoor_temperature: # Should be used with outdoor device address
         name: "Outdoor temperature"
-

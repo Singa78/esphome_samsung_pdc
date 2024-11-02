@@ -30,6 +30,26 @@ namespace esphome
       void loop() override;
       void dump_config() override;
 
+      template <typename SensorType, typename ValueType>
+      void update_device_sensor(const std::string &address, SensorType Samsung_AC_Device::*sensor_ptr, ValueType value)
+      {
+        Samsung_AC_Device *dev = find_device(address);
+        if (dev != nullptr && dev->*sensor_ptr != nullptr)
+        {
+          dev->update_sensor_state(dev->*sensor_ptr, value);
+        }
+      }
+
+      template <typename Func>
+      void execute_if_device_exists(const std::string &address, Func func)
+      {
+        Samsung_AC_Device *dev = find_device(address);
+        if (dev != nullptr)
+        {
+          func(dev);
+        }
+      }
+
       void set_debug_mqtt(std::string host, int port, std::string username, std::string password)
       {
         debug_mqtt_host = host;
@@ -56,146 +76,150 @@ namespace esphome
       {
         debug_log_undefined_messages = value;
       }
+
       void register_device(Samsung_AC_Device *device);
 
-      void /*MessageTarget::*/ register_address(const std::string address) override
+      void register_address(const std::string address) override
       {
         addresses_.insert(address);
       }
 
-      uint32_t /*MessageTarget::*/ get_miliseconds()
+      uint32_t get_miliseconds()
       {
         return millis();
       }
 
-      void /*MessageTarget::*/ publish_data(std::vector<uint8_t> &data);
+      void publish_data(std::vector<uint8_t> &data);
 
-      void /*MessageTarget::*/ set_room_temperature(const std::string address, float value) override
+      void set_room_temperature(const std::string address, float value) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_room_temperature(value);
-      }
-
-      void /*MessageTarget::*/ set_outdoor_temperature(const std::string address, float value) override
-      {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_outdoor_temperature(value);
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_room_temperature(value); });
       }
 
-      void /*MessageTarget::*/ set_indoor_eva_in_temperature(const std::string address, float value) override
+      void set_outdoor_temperature(const std::string address, float value) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_indoor_eva_in_temperature(value);
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_sensor_state(dev->outdoor_temperature, value); });
       }
 
-      void /*MessageTarget::*/ set_indoor_eva_out_temperature(const std::string address, float value) override
+      void set_indoor_eva_in_temperature(const std::string address, float value) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_indoor_eva_out_temperature(value);
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_sensor_state(dev->indoor_eva_in_temperature, value); });
       }
 
-      void /*MessageTarget::*/ set_target_temperature(const std::string address, float value) override
+      void set_indoor_eva_out_temperature(const std::string address, float value) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_target_temperature(value);
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_sensor_state(dev->indoor_eva_out_temperature, value); });
       }
 
-      void /*MessageTarget::*/ set_water_outlet_target(const std::string address, float value) override
+      void set_target_temperature(const std::string address, float value) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_water_outlet_target(value);
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_target_temperature(value); });
       }
 
-      void /*MessageTarget::*/ set_target_water_temperature(const std::string address, float value) override
+      void set_water_outlet_target(const std::string address, float value) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_target_water_temperature(value);
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_water_outlet_target(value); });
       }
 
-      void /*MessageTarget::*/ set_power(const std::string address, bool value) override
+      void set_target_water_temperature(const std::string address, float value) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_power(value);
-      }
-      void /*MessageTarget::*/ set_automatic_cleaning(const std::string address, bool value) override
-      {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_automatic_cleaning(value);
-      }
-      void /*MessageTarget::*/ set_water_heater_power(const std::string address, bool value) override
-      {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_water_heater_power(value);
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_target_water_temperature(value); });
       }
 
-      void /*MessageTarget::*/ set_mode(const std::string address, Mode mode) override
+      void set_power(const std::string address, bool value) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_mode(mode);
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_power(value); });
+      }
+      void set_automatic_cleaning(const std::string address, bool value) override
+      {
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_automatic_cleaning(value); });
       }
 
-      void /*MessageTarget::*/ set_water_heater_mode(const std::string address, WaterHeaterMode waterheatermode) override
+      void set_water_heater_power(const std::string address, bool value) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_water_heater_mode(waterheatermode);
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_water_heater_power(value); });
       }
 
-      void /*MessageTarget::*/ set_fanmode(const std::string address, FanMode fanmode) override
+      void set_mode(const std::string address, Mode mode) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_fanmode(fanmode);
+        execute_if_device_exists(address, [mode](Samsung_AC_Device *dev)
+                                 { dev->update_mode(mode); });
       }
 
-      void /*MessageTarget::*/ set_altmode(const std::string address, AltMode altmode) override
+      void set_water_heater_mode(const std::string address, WaterHeaterMode waterheatermode) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_altmode(altmode);
+        execute_if_device_exists(address, [waterheatermode](Samsung_AC_Device *dev)
+                                 { dev->update_water_heater_mode(waterheatermode); });
       }
 
-      void /*MessageTarget::*/ set_swing_vertical(const std::string address, bool vertical) override
+      void set_fanmode(const std::string address, FanMode fanmode) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_swing_vertical(vertical);
+        execute_if_device_exists(address, [fanmode](Samsung_AC_Device *dev)
+                                 { dev->update_fanmode(fanmode); });
       }
 
-      void /*MessageTarget::*/ set_swing_horizontal(const std::string address, bool horizontal) override
+      void set_altmode(const std::string address, AltMode altmode) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_swing_horizontal(horizontal);
+        execute_if_device_exists(address, [altmode](Samsung_AC_Device *dev)
+                                 { dev->update_altmode(altmode); });
       }
 
-      void /*MessageTarget::*/ set_custom_sensor(const std::string address, uint16_t message_number, float value) override
+      void set_swing_vertical(const std::string address, bool vertical) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_custom_sensor(message_number, value);
+        execute_if_device_exists(address, [vertical](Samsung_AC_Device *dev)
+                                 { dev->update_swing_vertical(vertical); });
       }
 
-      void /*MessageTarget::*/ set_error_code(const std::string address, int value) override
+      void set_swing_horizontal(const std::string address, bool horizontal) override
       {
-        Samsung_AC_Device *dev = find_device(address);
-        if (dev != nullptr)
-          dev->update_error_code(value);
+        execute_if_device_exists(address, [horizontal](Samsung_AC_Device *dev)
+                                 { dev->update_swing_horizontal(horizontal); });
+      }
+
+      void set_custom_sensor(const std::string address, uint16_t message_number, float value) override
+      {
+        execute_if_device_exists(address, [message_number, value](Samsung_AC_Device *dev)
+                                 { dev->update_custom_sensor(message_number, value); });
+      }
+
+      void set_error_code(const std::string address, int value) override
+      {
+        execute_if_device_exists(address, [value](Samsung_AC_Device *dev)
+                                 { dev->update_error_code(value); });
+      }
+
+      void set_outdoor_instantaneous_power(const std::string &address, float value)
+      {
+        update_device_sensor(address, &Samsung_AC_Device::outdoor_instantaneous_power, value);
+      }
+
+      void set_outdoor_cumulative_energy(const std::string &address, float value)
+      {
+        update_device_sensor(address, &Samsung_AC_Device::outdoor_cumulative_energy, value);
+      }
+
+      void set_outdoor_current(const std::string &address, float value)
+      {
+        update_device_sensor(address, &Samsung_AC_Device::outdoor_current, value);
+      }
+
+      void set_outdoor_voltage(const std::string &address, float value)
+      {
+        update_device_sensor(address, &Samsung_AC_Device::outdoor_voltage, value);
       }
 
     protected:
-      Samsung_AC_Device *find_device(const std::string address)
+      Samsung_AC_Device *find_device(const std::string &address)
       {
         auto it = devices_.find(address);
         if (it != devices_.end())

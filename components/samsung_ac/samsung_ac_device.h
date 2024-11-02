@@ -108,6 +108,10 @@ namespace esphome
       sensor::Sensor *indoor_eva_in_temperature{nullptr};
       sensor::Sensor *indoor_eva_out_temperature{nullptr};
       sensor::Sensor *error_code{nullptr};
+      sensor::Sensor *outdoor_instantaneous_power{nullptr};
+      sensor::Sensor *outdoor_cumulative_energy{nullptr};
+      sensor::Sensor *outdoor_current{nullptr};
+      sensor::Sensor *outdoor_voltage{nullptr};
       Samsung_AC_Number *target_temperature{nullptr};
       Samsung_AC_Number *water_outlet_target{nullptr};
       Samsung_AC_Number *target_water_temperature{nullptr};
@@ -117,12 +121,53 @@ namespace esphome
       Samsung_AC_Mode_Select *mode{nullptr};
       Samsung_AC_Water_Heater_Mode_Select *waterheatermode{nullptr};
       Samsung_AC_Climate *climate{nullptr};
-      std::vector<Samsung_AC_Sensor> custom_sensors;
+      std::map<uint16_t, sensor::Sensor *> custom_sensor_map;
       float room_temperature_offset{0};
 
-      void set_room_temperature_sensor(sensor::Sensor *sensor)
+      template <typename SwingType>
+      void update_swing(SwingType &swing_variable, uint8_t mask, bool value)
       {
-        room_temperature = sensor;
+        swing_variable = combine(swing_variable, mask, value);
+        climate->publish_state();
+      }
+
+      void update_sensor_state(sensor::Sensor *target_sensor, float value)
+      {
+        if (target_sensor != nullptr)
+        {
+          target_sensor->publish_state(value);
+        }
+      }
+
+      void set_error_code_sensor(sensor::Sensor *sensor)
+      {
+        error_code = sensor;
+      }
+
+      void update_error_code(int value)
+      {
+        if (error_code != nullptr)
+          error_code->publish_state(value);
+      }
+
+      void set_outdoor_instantaneous_power_sensor(sensor::Sensor *sensor)
+      {
+        outdoor_instantaneous_power = sensor;
+      }
+
+      void set_outdoor_cumulative_energy_sensor(sensor::Sensor *sensor)
+      {
+        outdoor_cumulative_energy = sensor;
+      }
+
+      void set_outdoor_current_sensor(sensor::Sensor *sensor)
+      {
+        outdoor_current = sensor;
+      }
+
+      void set_outdoor_voltage_sensor(sensor::Sensor *sensor)
+      {
+        outdoor_voltage = sensor;
       }
 
       void set_outdoor_temperature_sensor(sensor::Sensor *sensor)
@@ -140,17 +185,34 @@ namespace esphome
         indoor_eva_out_temperature = sensor;
       }
 
-      void set_error_code_sensor(sensor::Sensor *sensor)
+      void update_custom_sensor(uint16_t message_number, float value)
       {
-        error_code = sensor;
+        auto it = custom_sensor_map.find(message_number);
+        if (it != custom_sensor_map.end())
+        {
+          it->second->publish_state(value);
+        }
+      }
+
+      void set_room_temperature_sensor(sensor::Sensor *sensor)
+      {
+        room_temperature = sensor;
+      }
+
+      void update_room_temperature(float value)
+      {
+        if (room_temperature != nullptr)
+          room_temperature->publish_state(value + room_temperature_offset);
+        if (climate != nullptr)
+        {
+          climate->current_temperature = value + room_temperature_offset;
+          climate->publish_state();
+        }
       }
 
       void add_custom_sensor(int message_number, sensor::Sensor *sensor)
       {
-        Samsung_AC_Sensor cust_sensor;
-        cust_sensor.message_number = (uint16_t)message_number;
-        cust_sensor.sensor = sensor;
-        custom_sensors.push_back(std::move(cust_sensor));
+        custom_sensor_map[(uint16_t)message_number] = sensor;
       }
 
       void set_power_switch(Samsung_AC_Switch *switch_)
@@ -370,8 +432,7 @@ namespace esphome
       {
         if (climate != nullptr)
         {
-          climate->swing_mode = combine(climate->swing_mode, 1, value);
-          climate->publish_state();
+          update_swing(climate->swing_mode, 1, value);
         }
       }
 
@@ -379,51 +440,8 @@ namespace esphome
       {
         if (climate != nullptr)
         {
-          climate->swing_mode = combine(climate->swing_mode, 2, value);
-          climate->publish_state();
+          update_swing(climate->swing_mode, 2, value);
         }
-      }
-
-      void update_room_temperature(float value)
-      {
-        if (room_temperature != nullptr)
-          room_temperature->publish_state(value + room_temperature_offset);
-        if (climate != nullptr)
-        {
-          climate->current_temperature = value + room_temperature_offset;
-          climate->publish_state();
-        }
-      }
-
-      void update_outdoor_temperature(float value)
-      {
-        if (outdoor_temperature != nullptr)
-          outdoor_temperature->publish_state(value);
-      }
-
-      void update_indoor_eva_in_temperature(float value)
-      {
-        if (indoor_eva_in_temperature != nullptr)
-          indoor_eva_in_temperature->publish_state(value);
-      }
-
-      void update_indoor_eva_out_temperature(float value)
-      {
-        if (indoor_eva_out_temperature != nullptr)
-          indoor_eva_out_temperature->publish_state(value);
-      }
-
-      void update_error_code(int value)
-      {
-        if (error_code != nullptr)
-          error_code->publish_state(value);
-      }
-
-      void update_custom_sensor(uint16_t message_number, float value)
-      {
-        for (auto &sensor : custom_sensors)
-          if (sensor.message_number == message_number)
-            sensor.sensor->publish_state(value);
       }
 
       void publish_request(ProtocolRequest &request)
@@ -478,8 +496,8 @@ namespace esphome
       }
 
     protected:
-      bool supports_horizontal_swing_{true};
-      bool supports_vertical_swing_{true};
+      bool supports_horizontal_swing_{false};
+      bool supports_vertical_swing_{false};
       std::vector<AltModeDesc> alt_modes;
 
       Protocol *protocol{nullptr};
