@@ -5,6 +5,7 @@
 #include "util.h"
 #include "protocol_nasa.h"
 #include "debug_mqtt.h"
+#include "math.h"
 
 esphome::samsung_ac::Packet packet_;
 
