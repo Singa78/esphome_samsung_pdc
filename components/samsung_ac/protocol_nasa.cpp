@@ -826,7 +826,8 @@ namespace esphome
 
             if (debug_log_undefined_messages)
             {
-                ESP_LOGW(TAG, "MSG: %s", packet_.to_string().c_str());
+                if (packet_.sa.to_string() == "20.00.00")
+                    ESP_LOGW(TAG, "MSG: %s", packet_.to_string().c_str());
             }
 
             if (packet_.command.dataType == DataType::Ack)
