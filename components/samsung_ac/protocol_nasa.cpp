@@ -803,7 +803,10 @@ namespace esphome
                 default:
                     if (debug_log_undefined_messages)
                     {
-                        ESP_LOGW(TAG, "Undefined s:%s d:%s %s", source.c_str(), dest.c_str(), message.to_string().c_str());
+                        if (packet_.sa.to_string() == "20.00.00")
+                        {
+                            ESP_LOGW(TAG, "Undefined s:%s d:%s %s", source.c_str(), dest.c_str(), message.to_string().c_str());
+                        }
                     }
                     break;
                 }
@@ -827,7 +830,9 @@ namespace esphome
             if (debug_log_undefined_messages)
             {
                 if (packet_.sa.to_string() == "20.00.00")
+                {
                     ESP_LOGW(TAG, "MSG: %s", packet_.to_string().c_str());
+                }
             }
 
             if (packet_.command.dataType == DataType::Ack)
@@ -1246,7 +1251,9 @@ namespace esphome
                 if (debug_log_undefined_messages)
                 {
                     if (packet_.sa.to_string() == "20.00.00")
+                    {
                         ESP_LOGW(TAG, "s:%s d:%s !! unknown %s", source.c_str(), dest.c_str(), message.to_string().c_str());
+                    }
                 }
                 break;
             }
