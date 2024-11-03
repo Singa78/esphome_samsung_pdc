@@ -750,7 +750,7 @@ namespace esphome
             }
             case MessageNumber::LVAR_NM_OUT_SENSOR_VOLTAGE:
             {
-                double value = static_cast<double>(message.value);
+                double value = static_cast<double>(message.value) / sqrt(2);
                 LOG_MESSAGE(LVAR_NM_OUT_SENSOR_VOLTAGE, value, source, dest);
                 target->set_outdoor_voltage(source, value);
                 break;
